@@ -1,0 +1,1270 @@
+{
+  "name": "Telegram Root Orchestrator - Multi-Agent Article Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "b45ca193-bf20-4cd8-a131-1d28d079d8f1",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1560,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const update = $input.first().json;\nconst message = update.message ?? update.edited_message ?? {};\nconst chatId = message.chat?.id;\n\nif (chatId === undefined || chatId === null) {\n  throw new Error('Telegram update did not contain message.chat.id.');\n}\n\nconst rawText = String(message.text ?? '').trim();\nconst isHelpCommand = /^\\/(start|help)(@\\w+)?(?:\\s|$)/i.test(rawText);\nconst usedArticleCommand = /^\\/article(@\\w+)?(?:\\s|$)/i.test(rawText);\nconst title = usedArticleCommand\n  ? rawText.replace(/^\\/article(@\\w+)?(?:\\s+|$)/i, '').trim()\n  : rawText;\nconst validRequest = !isHelpCommand && title.length >= 4;\n\nreturn [{\n  json: {\n    validRequest,\n    stage: validRequest ? 'planning' : 'help',\n    status: validRequest ? 'running' : 'help',\n    chatId,\n    sourceMessageId: message.message_id ?? null,\n    requestedBy: {\n      id: message.from?.id ?? null,\n      username: message.from?.username ?? null,\n      firstName: message.from?.first_name ?? null\n    },\n    title,\n    targetAudience: 'General informed readers',\n    tone: 'Clear, engaging, and authoritative',\n    minWords: 800,\n    maxWords: 1200,\n    maxPlanAttempts: 3,\n    maxDraftAttempts: 3,\n    planAttemptCount: 0,\n    draftAttemptCount: 0,\n    outline: null,\n    planParsed: false,\n    planApproved: false,\n    planScore: null,\n    planIssues: [],\n    planFeedback: '',\n    article: null,\n    draftParsed: false,\n    articleApproved: false,\n    articleScore: null,\n    articleScores: null,\n    articleIssues: [],\n    draftFeedback: '',\n    startedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "27cd0232-a8d4-4c02-9262-81a67f929af7",
+      "name": "ROOT - Initialize State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "58595ec1-8a93-49af-b5bc-5f18e87ace64",
+              "leftValue": "={{ $json.validRequest }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "51c35dc2-b988-4d4c-b541-3192ce2c2561",
+      "name": "Article Title Provided?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1200,
+        160
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "e6e70c02-2fc2-44f0-89cd-9ea19a268c32",
+      "name": "Prepare Planner Call",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -1240,
+        -240
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "e17bc854-5378-4144-a216-8f7e67545db4",
+      "name": "Prepare Outline Review",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -500,
+        -400
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "b91f7071-c76b-4c56-b28a-584132433a77",
+      "name": "Prepare Writer Call",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        560,
+        -520
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a4610ecb-a46a-4efc-8ee9-c540a7ec8d3e",
+      "name": "Prepare Article Review",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        -680
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst output = response.text ?? response.output ?? JSON.stringify(response);\nreturn [{ json: { output } }];"
+      },
+      "id": "45940aa6-b9bc-4923-a679-f354411f75d5",
+      "name": "Wrap Planner Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -920,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "e17b917e-6ee0-41bf-857a-d2a44da9c4b2",
+      "name": "Merge Planner State",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -720,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst output = response.text ?? response.output ?? JSON.stringify(response);\nreturn [{ json: { output } }];"
+      },
+      "id": "6ce9053b-2e9d-4038-bb81-5848bd16baf5",
+      "name": "Wrap Outline Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -120,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "7a0236a5-82f8-48e2-b577-9751a1a8434e",
+      "name": "Merge Outline Review State",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        64,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst output = response.text ?? response.output ?? JSON.stringify(response);\nreturn [{ json: { output } }];"
+      },
+      "id": "1b45e718-dfc3-4cc2-9d21-95cdf7bc962e",
+      "name": "Wrap Writer Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "4e88bd3e-9495-4422-8014-ae8bef116f50",
+      "name": "Merge Writer State",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1080,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst output = response.text ?? response.output ?? JSON.stringify(response);\nreturn [{ json: { output } }];"
+      },
+      "id": "87f50d90-e87e-43da-b93f-e6066f24df89",
+      "name": "Wrap Article Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1640,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "b7bd347b-81f1-4d04-a976-809c1c5b1e25",
+      "name": "Merge Article Review State",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1820,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Create a rigorous article outline for the supplied request.\n\nARTICLE TITLE: {{ $json.title }}\nTARGET AUDIENCE: {{ $json.targetAudience }}\nTONE: {{ $json.tone }}\nTARGET LENGTH: {{ $json.minWords }}-{{ $json.maxWords }} words\nATTEMPT: {{ $json.planAttemptCount + 1 }} of {{ $json.maxPlanAttempts }}\n\nCHECKER FEEDBACK FROM THE PREVIOUS ATTEMPT:\n{{ $json.planFeedback || 'None - this is the first attempt.' }}\n\nPREVIOUS OUTLINE:\n{{ $json.outline ? JSON.stringify($json.outline, null, 2) : 'None' }}\n\nBuild a structure that includes the title, introduction, key bullet points, body sections, and conclusion. Each body section must have a clear purpose and actionable supporting points. On a revision, directly fix every checker issue. Do not add citations or invented statistics.\n\nReturn ONLY valid JSON with this exact shape:\n{\n  \"title\": \"string\",\n  \"thesis\": \"string\",\n  \"introduction\": {\n    \"hook\": \"string\",\n    \"context\": \"string\",\n    \"purpose\": \"string\"\n  },\n  \"keyBulletPoints\": [\"string\"],\n  \"bodySections\": [\n    {\n      \"heading\": \"string\",\n      \"purpose\": \"string\",\n      \"points\": [\"string\"]\n    }\n  ],\n  \"conclusion\": {\n    \"summary\": \"string\",\n    \"takeaway\": \"string\",\n    \"callToAction\": \"string\"\n  }\n}\n\nNo preamble and no markdown fences.",
+        "batching": {},
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are the Planner. You turn an article title into a specific, coherent, non-repetitive writing plan. You honor checker feedback exactly and always return valid JSON."
+            }
+          ]
+        }
+      },
+      "id": "db588470-7172-49c1-a582-a165ea369f27",
+      "name": "Planner Agent",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1080,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": true,
+        "options": {},
+        "builtInTools": {}
+      },
+      "id": "a58170e8-cc7a-4919-956f-2bc65d49cc41",
+      "name": "OpenAI - Planner",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -1080,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $input.first().json;\nconst nextAttempt = (state.planAttemptCount || 0) + 1;\nconst clean = (value) => String(value ?? '')\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/```\\s*$/i, '')\n  .trim();\n\nlet outline;\ntry {\n  outline = JSON.parse(clean(state.output));\n} catch (error) {\n  return [{ json: {\n    ...state,\n    output: undefined,\n    planAttemptCount: nextAttempt,\n    planParsed: false,\n    planApproved: false,\n    planFeedback: `Planner returned invalid JSON. Regenerate the full outline as valid JSON. Parser error: ${error.message}`\n  }}];\n}\n\nconst valid =\n  typeof outline.title === 'string' && outline.title.trim() &&\n  typeof outline.thesis === 'string' && outline.thesis.trim() &&\n  outline.introduction && typeof outline.introduction === 'object' &&\n  Array.isArray(outline.keyBulletPoints) && outline.keyBulletPoints.length >= 3 &&\n  Array.isArray(outline.bodySections) && outline.bodySections.length >= 3 &&\n  outline.bodySections.every(section =>\n    typeof section.heading === 'string' && section.heading.trim() &&\n    typeof section.purpose === 'string' && section.purpose.trim() &&\n    Array.isArray(section.points) && section.points.length >= 2\n  ) &&\n  outline.conclusion && typeof outline.conclusion === 'object';\n\nif (!valid) {\n  return [{ json: {\n    ...state,\n    output: undefined,\n    outline,\n    planAttemptCount: nextAttempt,\n    planParsed: false,\n    planApproved: false,\n    planFeedback: 'The outline JSON is missing required fields or depth. Include at least 3 key bullet points, at least 3 body sections, and at least 2 points per body section.'\n  }}];\n}\n\nreturn [{ json: {\n  ...state,\n  output: undefined,\n  outline,\n  planAttemptCount: nextAttempt,\n  planParsed: true,\n  planApproved: false\n}}];"
+      },
+      "id": "d5708a0b-891d-4858-82ec-a8fdcb583f7e",
+      "name": "Validate Planner Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -820,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0a9ac1b-e7e2-498a-a73e-b4c5f9989d42",
+              "leftValue": "={{ $json.planParsed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1403e7fd-254d-4779-8bf4-ae9a1495e09d",
+      "name": "Outline JSON Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -580,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Review this article outline as a demanding senior editor.\n\nREQUESTED TITLE: {{ $json.title }}\nAUDIENCE: {{ $json.targetAudience }}\nTONE: {{ $json.tone }}\nTARGET LENGTH: {{ $json.minWords }}-{{ $json.maxWords }} words\n\nOUTLINE:\n{{ JSON.stringify($json.outline, null, 2) }}\n\nEvaluate:\n1. Direct alignment with the requested title and audience.\n2. A strong introduction and clear thesis.\n3. Logical flow with no repetition or gaps.\n4. Body sections detailed enough for the writer.\n5. A conclusion that resolves the thesis.\n6. Scope that fits the target length.\n\nApprove only if the outline scores at least 80/100. If rejected, give precise changes the Planner can execute.\n\nReturn ONLY valid JSON:\n{\n  \"approved\": boolean,\n  \"score\": number,\n  \"issues\": [\"string\"],\n  \"feedback\": \"specific revision instructions; empty only when approved\"\n}\n\nNo preamble and no markdown fences.",
+        "batching": {},
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are the Outline Checker. Be strict, consistent, and actionable. Approve only strong outlines. Always return valid JSON."
+            }
+          ]
+        }
+      },
+      "id": "7f10219b-9a64-4df4-aaf3-84477a2f68ab",
+      "name": "Outline Checker Agent",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -340,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": true,
+        "options": {},
+        "builtInTools": {}
+      },
+      "id": "71e0588d-63d3-4887-82a4-8c6446922d6b",
+      "name": "OpenAI - Outline Checker",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -340,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $input.first().json;\nconst clean = (value) => String(value ?? '')\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/```\\s*$/i, '')\n  .trim();\n\nlet review;\ntry {\n  review = JSON.parse(clean(state.output));\n} catch (error) {\n  return [{ json: {\n    ...state,\n    output: undefined,\n    planApproved: false,\n    planScore: 0,\n    planIssues: ['Outline Checker returned invalid JSON'],\n    planFeedback: `The checker response could not be parsed. Rebuild the outline conservatively and return valid JSON. ${error.message}`\n  }}];\n}\n\nconst score = Number(review.score);\nconst issues = Array.isArray(review.issues) ? review.issues.map(String) : [];\nconst approved = review.approved === true && Number.isFinite(score) && score >= 80;\nconst fallbackFeedback = issues.length\n  ? issues.map((issue, index) => `${index + 1}. ${issue}`).join('\\n')\n  : 'Strengthen title alignment, logical flow, section depth, and conclusion before resubmitting.';\n\nreturn [{ json: {\n  ...state,\n  output: undefined,\n  planApproved: approved,\n  planScore: Number.isFinite(score) ? score : 0,\n  planIssues: issues,\n  planFeedback: approved ? '' : String(review.feedback || fallbackFeedback)\n}}];"
+      },
+      "id": "03d744aa-0ac8-462d-ac2e-f683c543e79d",
+      "name": "Validate Outline Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "144fb10b-f6bf-440a-994a-3e35a19e4388",
+              "leftValue": "={{ $json.planApproved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dba5e3fc-9b4d-41c6-b51b-65cc40800cfa",
+      "name": "Outline Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        160,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c35e5afc-14e9-457a-b8ea-a98834bedc50",
+              "leftValue": "={{ $json.planAttemptCount }}",
+              "rightValue": "={{ $json.maxPlanAttempts }}",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1c395a80-8487-47fb-b1de-255c3538b9b5",
+      "name": "More Plan Attempts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        160,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $input.first().json;\nreturn [{ json: {\n  ...state,\n  stage: 'writing',\n  planFeedback: '',\n  draftFeedback: '',\n  articleApproved: false\n}}];"
+      },
+      "id": "fbd9af42-d280-49a9-854f-c002e08cb555",
+      "name": "ROOT - Accept Outline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        -520
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write the complete article from the approved outline.\n\nREQUESTED TITLE: {{ $json.title }}\nAUDIENCE: {{ $json.targetAudience }}\nTONE: {{ $json.tone }}\nTARGET LENGTH: {{ $json.minWords }}-{{ $json.maxWords }} words\nATTEMPT: {{ $json.draftAttemptCount + 1 }} of {{ $json.maxDraftAttempts }}\n\nAPPROVED OUTLINE:\n{{ JSON.stringify($json.outline, null, 2) }}\n\nARTICLE CHECKER FEEDBACK FROM THE PREVIOUS ATTEMPT:\n{{ $json.draftFeedback || 'None - this is the first draft.' }}\n\nPREVIOUS DRAFT:\n{{ $json.article ? $json.article.articleMarkdown : 'None' }}\n\nRequirements:\n- Follow every part of the approved outline.\n- Use useful headings and natural transitions.\n- Match the target audience and tone.\n- Address every checker issue on a revision.\n- Do not invent quotations, citations, links, or precise statistics.\n- Deliver polished Markdown.\n\nReturn ONLY valid JSON:\n{\n  \"title\": \"string\",\n  \"metaDescription\": \"string, maximum 160 characters\",\n  \"articleMarkdown\": \"complete Markdown article\",\n  \"wordCount\": number\n}\n\nNo preamble and no markdown fences around the JSON.",
+        "batching": {},
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are the Writer. You write polished long-form articles that follow approved outlines and revision feedback. You always return valid JSON."
+            }
+          ]
+        }
+      },
+      "id": "25a42897-dd19-4c44-9a7a-b6384bb13eb7",
+      "name": "Writer Agent",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        720,
+        -520
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": true,
+        "options": {},
+        "builtInTools": {}
+      },
+      "id": "35658057-9888-4c1b-a2e6-c140d77ab5b4",
+      "name": "OpenAI - Writer",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        720,
+        -296
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $input.first().json;\nconst nextAttempt = (state.draftAttemptCount || 0) + 1;\nconst clean = (value) => String(value ?? '')\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/```\\s*$/i, '')\n  .trim();\n\nlet article;\ntry {\n  article = JSON.parse(clean(state.output));\n} catch (error) {\n  return [{ json: {\n    ...state,\n    output: undefined,\n    draftAttemptCount: nextAttempt,\n    draftParsed: false,\n    articleApproved: false,\n    draftFeedback: `Writer returned invalid JSON. Return the entire article payload as valid JSON. Parser error: ${error.message}`\n  }}];\n}\n\nconst valid =\n  typeof article.title === 'string' && article.title.trim() &&\n  typeof article.metaDescription === 'string' && article.metaDescription.trim() &&\n  article.metaDescription.length <= 180 &&\n  typeof article.articleMarkdown === 'string' && article.articleMarkdown.trim();\n\nif (!valid) {\n  return [{ json: {\n    ...state,\n    output: undefined,\n    article,\n    draftAttemptCount: nextAttempt,\n    draftParsed: false,\n    articleApproved: false,\n    draftFeedback: 'The article payload is missing title, metaDescription, or articleMarkdown, or the meta description is too long. Return all required fields.'\n  }}];\n}\n\nconst actualWordCount = article.articleMarkdown\n  .replace(/[#*_>`~\\[\\]()!-]/g, ' ')\n  .split(/\\s+/)\n  .filter(Boolean).length;\n\narticle.wordCount = actualWordCount;\n\nreturn [{ json: {\n  ...state,\n  output: undefined,\n  article,\n  draftAttemptCount: nextAttempt,\n  draftParsed: true,\n  articleApproved: false\n}}];"
+      },
+      "id": "280b2832-11b9-4c1f-9eb4-9daf45955726",
+      "name": "Validate Writer Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        -520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fc44fde5-389d-4528-acfe-0b9c97b92fbd",
+              "leftValue": "={{ $json.draftParsed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1288eafa-3379-4307-991c-99b7e12ae2bd",
+      "name": "Draft JSON Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1220,
+        -520
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Act as the final quality editor for this article.\n\nREQUEST:\nTitle: {{ $json.title }}\nAudience: {{ $json.targetAudience }}\nTone: {{ $json.tone }}\nRequired length: {{ $json.minWords }}-{{ $json.maxWords }} words\n\nAPPROVED OUTLINE:\n{{ JSON.stringify($json.outline, null, 2) }}\n\nDRAFT:\n{{ $json.article.articleMarkdown }}\n\nScore each category from 0 to 10:\n- outlineAdherence: covers the approved introduction, key points, body, and conclusion.\n- clarity: readable, coherent, and well organized.\n- completeness: develops the ideas with enough depth and fits the requested length.\n- style: matches the audience and tone without filler or repetition.\n\nDo not claim to fact-check external facts because no source packet was supplied. You may flag suspicious or unsupported precise claims. Approve only if every category is at least 7/10 and the overall score is at least 80/100. If rejected, provide specific revision instructions for the Writer.\n\nReturn ONLY valid JSON:\n{\n  \"approved\": boolean,\n  \"overallScore\": number,\n  \"scores\": {\n    \"outlineAdherence\": number,\n    \"clarity\": number,\n    \"completeness\": number,\n    \"style\": number\n  },\n  \"issues\": [\"string\"],\n  \"feedback\": \"specific revision instructions; empty only when approved\"\n}\n\nNo preamble and no markdown fences.",
+        "batching": {},
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are the Article Checker. You are strict, specific, and consistent. You enforce the approved outline and quality threshold. Always return valid JSON."
+            }
+          ]
+        }
+      },
+      "id": "2f6fe910-4795-4d13-91cb-f4d9a72a5091",
+      "name": "Article Checker Agent",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1460,
+        -680
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "responsesApiEnabled": true,
+        "options": {},
+        "builtInTools": {}
+      },
+      "id": "e37c68ed-ac23-4085-b58b-7d31de35b77d",
+      "name": "OpenAI - Article Checker",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1460,
+        -456
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $input.first().json;\nconst clean = (value) => String(value ?? '')\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/```\\s*$/i, '')\n  .trim();\n\nlet review;\ntry {\n  review = JSON.parse(clean(state.output));\n} catch (error) {\n  return [{ json: {\n    ...state,\n    output: undefined,\n    articleApproved: false,\n    articleScore: 0,\n    articleIssues: ['Article Checker returned invalid JSON'],\n    draftFeedback: `The checker response could not be parsed. Revise the draft conservatively and return valid JSON. ${error.message}`\n  }}];\n}\n\nconst overall = Number(review.overallScore);\nconst scores = review.scores && typeof review.scores === 'object' ? {\n  outlineAdherence: Number(review.scores.outlineAdherence),\n  clarity: Number(review.scores.clarity),\n  completeness: Number(review.scores.completeness),\n  style: Number(review.scores.style)\n} : null;\nconst scoreValues = scores ? Object.values(scores) : [];\nconst allScoresPass = scoreValues.length === 4 && scoreValues.every(score => Number.isFinite(score) && score >= 7);\nconst issues = Array.isArray(review.issues) ? review.issues.map(String) : [];\nconst lengthPass = state.article.wordCount >= state.minWords && state.article.wordCount <= state.maxWords;\nconst approved = review.approved === true && Number.isFinite(overall) && overall >= 80 && allScoresPass && lengthPass;\n\nif (!lengthPass) {\n  issues.push(`Draft length is ${state.article.wordCount} words; required range is ${state.minWords}-${state.maxWords}.`);\n}\n\nconst fallbackFeedback = issues.length\n  ? issues.map((issue, index) => `${index + 1}. ${issue}`).join('\\n')\n  : 'Improve outline adherence, clarity, completeness, and style before resubmitting.';\n\nreturn [{ json: {\n  ...state,\n  output: undefined,\n  articleApproved: approved,\n  articleScore: Number.isFinite(overall) ? overall : 0,\n  articleScores: scores,\n  articleIssues: issues,\n  draftFeedback: approved ? '' : String(review.feedback || fallbackFeedback)\n}}];"
+      },
+      "id": "860b465e-d52b-4589-b297-6289791f31b0",
+      "name": "Validate Article Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1720,
+        -680
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0e2e56fe-68a9-48b3-84c6-9b71e2f471ff",
+              "leftValue": "={{ $json.articleApproved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fbd767fc-86bb-43c4-b9a1-4ae098cd2dae",
+      "name": "Article Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1960,
+        -680
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c60bce38-ee4b-4ef9-b458-2341c05004a2",
+              "leftValue": "={{ $json.draftAttemptCount }}",
+              "rightValue": "={{ $json.maxDraftAttempts }}",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b9bd7ee4-d42b-43d9-b846-c543771bf9c3",
+      "name": "More Draft Attempts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1960,
+        -392
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $input.first().json;\nreturn [{ json: {\n  status: 'approved',\n  chatId: state.chatId,\n  title: state.title,\n  outline: state.outline,\n  article: state.article,\n  quality: {\n    outlineScore: state.planScore,\n    articleScore: state.articleScore,\n    articleScores: state.articleScores\n  },\n  attempts: {\n    planning: state.planAttemptCount,\n    writing: state.draftAttemptCount\n  },\n  startedAt: state.startedAt,\n  completedAt: new Date().toISOString()\n}}];"
+      },
+      "id": "1816ad01-7ec3-4b9e-9970-d36964dc0300",
+      "name": "ROOT - Finalize Approved Article",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        -800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $input.first().json;\nreturn [{ json: {\n  status: 'outline_rejected_after_max_attempts',\n  chatId: state.chatId,\n  title: state.title,\n  outline: state.outline,\n  checkerScore: state.planScore,\n  checkerIssues: state.planIssues,\n  checkerFeedback: state.planFeedback,\n  attempts: state.planAttemptCount,\n  completedAt: new Date().toISOString()\n}}];"
+      },
+      "id": "ef39879f-abde-4b67-81b2-52705fabd70d",
+      "name": "ROOT - Return Outline Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $input.first().json;\nreturn [{ json: {\n  status: 'article_needs_human_review',\n  chatId: state.chatId,\n  title: state.title,\n  outline: state.outline,\n  article: state.article,\n  checkerScore: state.articleScore,\n  checkerScores: state.articleScores,\n  checkerIssues: state.articleIssues,\n  checkerFeedback: state.draftFeedback,\n  attempts: {\n    planning: state.planAttemptCount,\n    writing: state.draftAttemptCount\n  },\n  completedAt: new Date().toISOString()\n}}];"
+      },
+      "id": "67f54fa2-f9fb-4c07-81ea-34b15a8c366d",
+      "name": "ROOT - Return Draft Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        -280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nconst limit = 3400;\n\nconst splitText = (value) => {\n  let remaining = String(value ?? '').trim();\n  const chunks = [];\n\n  while (remaining.length > limit) {\n    let cut = remaining.lastIndexOf('\\n\\n', limit);\n    if (cut < Math.floor(limit * 0.55)) cut = remaining.lastIndexOf('\\n', limit);\n    if (cut < Math.floor(limit * 0.55)) cut = remaining.lastIndexOf(' ', limit);\n    if (cut < Math.floor(limit * 0.55)) cut = limit;\n    chunks.push(remaining.slice(0, cut).trim());\n    remaining = remaining.slice(cut).trim();\n  }\n\n  if (remaining) chunks.push(remaining);\n  return chunks;\n};\n\nlet header;\nlet body = '';\n\nif (result.status === 'approved') {\n  header = [\n    '✅ Article approved',\n    `Title: ${result.title}`,\n    `Outline score: ${result.quality?.outlineScore ?? 'N/A'}/100`,\n    `Article score: ${result.quality?.articleScore ?? 'N/A'}/100`,\n    `Planning attempts: ${result.attempts?.planning ?? 'N/A'}`,\n    `Writing attempts: ${result.attempts?.writing ?? 'N/A'}`\n  ].join('\\n');\n  body = result.article?.articleMarkdown ?? 'The article body was missing.';\n} else if (result.status === 'article_needs_human_review') {\n  header = [\n    '⚠️ Article needs human review',\n    `Title: ${result.title}`,\n    `Checker score: ${result.checkerScore ?? 'N/A'}/100`,\n    `Feedback: ${result.checkerFeedback || 'No feedback supplied.'}`,\n    'The best available draft follows.'\n  ].join('\\n');\n  body = result.article?.articleMarkdown ?? 'No valid draft was produced.';\n} else if (result.status === 'outline_rejected_after_max_attempts') {\n  header = [\n    '❌ The outline did not pass review',\n    `Title: ${result.title}`,\n    `Checker score: ${result.checkerScore ?? 'N/A'}/100`,\n    `Attempts: ${result.attempts}`,\n    `Feedback: ${result.checkerFeedback || 'No feedback supplied.'}`\n  ].join('\\n');\n  body = result.outline ? `Last outline:\\n${JSON.stringify(result.outline, null, 2)}` : 'No valid outline was produced.';\n} else {\n  header = [\n    '✍️ Multi-Agent Article Bot',\n    '',\n    'Send the article title as a normal Telegram message.',\n    '',\n    'You can also use:',\n    '/article Your article title',\n    '/help',\n    '',\n    'Example:',\n    'How Small Businesses Can Use AI Without Losing the Human Touch',\n    '',\n    'Default output: 800-1200 words with up to 3 planning and writing attempts.'\n  ].join('\\n');\n}\n\nconst messages = [{ chatId: result.chatId, text: header, part: 0 }];\nconst bodyChunks = splitText(body);\nfor (let index = 0; index < bodyChunks.length; index++) {\n  const label = bodyChunks.length > 1 ? `Article ${index + 1}/${bodyChunks.length}\\n\\n` : '';\n  messages.push({\n    chatId: result.chatId,\n    text: `${label}${bodyChunks[index]}`,\n    part: index + 1\n  });\n}\n\nreturn messages.map(message => ({ json: message }));"
+      },
+      "id": "a40311c4-02ad-4b74-91af-6cb601fdd20e",
+      "name": "Prepare Telegram Messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2500,
+        -520
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "6d0175a7-f32e-49b3-a35a-cdfaf51b0976",
+      "name": "Send Result to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        2760,
+        -520
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ROOT ORCHESTRATOR\nReceives a Telegram title, owns the state, enforces retry limits, and returns the final result to the same chat.",
+        "height": 240,
+        "width": 520,
+        "color": 5
+      },
+      "id": "0f350042-4426-42bc-a501-a083361ab97a",
+      "name": "Root Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1640,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PLANNING LOOP\nPlanner builds title, introduction, bullet points, body, and conclusion. The Outline Checker approves or sends precise feedback back to Planner.",
+        "height": 720,
+        "width": 1520,
+        "color": 4
+      },
+      "id": "6e178db7-dd6f-4394-868f-81f839868fc6",
+      "name": "Planning Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1160,
+        -600
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## WRITING LOOP\nWriter follows the approved outline. The Article Checker scores structure, clarity, completeness, and style, then approves or returns revision feedback.",
+        "height": 800,
+        "width": 1880,
+        "color": 3
+      },
+      "id": "a315a921-41da-46d9-b7c1-84c3949b1c68",
+      "name": "Writing Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        640,
+        -920
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "ROOT - Initialize State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ROOT - Initialize State": {
+      "main": [
+        [
+          {
+            "node": "Article Title Provided?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Article Title Provided?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Planner Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Telegram Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Planner Call": {
+      "main": [
+        [
+          {
+            "node": "Planner Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Planner State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wrap Planner Response": {
+      "main": [
+        [
+          {
+            "node": "Merge Planner State",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Planner State": {
+      "main": [
+        [
+          {
+            "node": "Validate Planner Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Outline Review": {
+      "main": [
+        [
+          {
+            "node": "Outline Checker Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Outline Review State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wrap Outline Review": {
+      "main": [
+        [
+          {
+            "node": "Merge Outline Review State",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Outline Review State": {
+      "main": [
+        [
+          {
+            "node": "Validate Outline Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Writer Call": {
+      "main": [
+        [
+          {
+            "node": "Writer Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Writer State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wrap Writer Response": {
+      "main": [
+        [
+          {
+            "node": "Merge Writer State",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Writer State": {
+      "main": [
+        [
+          {
+            "node": "Validate Writer Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Article Review": {
+      "main": [
+        [
+          {
+            "node": "Article Checker Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Article Review State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wrap Article Review": {
+      "main": [
+        [
+          {
+            "node": "Merge Article Review State",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Article Review State": {
+      "main": [
+        [
+          {
+            "node": "Validate Article Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Planner": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Planner Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Planner Agent": {
+      "main": [
+        [
+          {
+            "node": "Wrap Planner Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Planner Output": {
+      "main": [
+        [
+          {
+            "node": "Outline JSON Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outline JSON Valid?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Outline Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "More Plan Attempts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Outline Checker": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Outline Checker Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outline Checker Agent": {
+      "main": [
+        [
+          {
+            "node": "Wrap Outline Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Outline Review": {
+      "main": [
+        [
+          {
+            "node": "Outline Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outline Approved?": {
+      "main": [
+        [
+          {
+            "node": "ROOT - Accept Outline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "More Plan Attempts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "More Plan Attempts?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Planner Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ROOT - Return Outline Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ROOT - Accept Outline": {
+      "main": [
+        [
+          {
+            "node": "Prepare Writer Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Writer": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Writer Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Writer Agent": {
+      "main": [
+        [
+          {
+            "node": "Wrap Writer Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Writer Output": {
+      "main": [
+        [
+          {
+            "node": "Draft JSON Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft JSON Valid?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Article Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "More Draft Attempts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Article Checker": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Article Checker Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Article Checker Agent": {
+      "main": [
+        [
+          {
+            "node": "Wrap Article Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Article Review": {
+      "main": [
+        [
+          {
+            "node": "Article Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Article Approved?": {
+      "main": [
+        [
+          {
+            "node": "ROOT - Finalize Approved Article",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "More Draft Attempts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "More Draft Attempts?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Writer Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ROOT - Return Draft Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ROOT - Finalize Approved Article": {
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ROOT - Return Outline Failure": {
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ROOT - Return Draft Failure": {
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Telegram Messages": {
+      "main": [
+        [
+          {
+            "node": "Send Result to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
