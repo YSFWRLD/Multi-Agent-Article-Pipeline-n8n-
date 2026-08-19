@@ -224,7 +224,3 @@ Use n8n Credentials for all secrets. Restrict the bot to approved chat or user I
 - Telegram is the only input and output channel in this template.
 
 For sourced articles, add a Research Agent before the Planner and pass its source packet to the Planner, Writer, and Article Checker.
-
-## More setup detail
-
-See [`n8n-multi-agent-article-setup.md`](n8n-multi-agent-article-setup.md) for the shorter setup reference.
